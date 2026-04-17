@@ -1,0 +1,113 @@
+from datetime import datetime
+from typing import List
+
+import httpx
+
+from app.adapters.http_client import build_client
+from app.core.config import settings
+from app.models.types import TokenCandidate, TokenSignals
+
+
+class SolanaAdapter:
+    async def discover_candidates(self) -> List[TokenCandidate]:
+        if not settings.birdeye_api_key:
+            return [
+                TokenCandidate(
+                    mint="So11111111111111111111111111111111111111112",
+                    symbol="WSOL",
+                    age_minutes=120.0,
+                    liquidity_usd=2000000.0,
+                    volume_5m_usd=85000.0,
+                )
+            ]
+
+        headers = {"X-API-KEY": settings.birdeye_api_key}
+        url = f"{settings.birdeye_base}/defi/tokenlist"
+        async with build_client() as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            payload = response.json()
+
+        tokens = payload.get("data", {}).get("tokens", [])[:20]
+        out: List[TokenCandidate] = []
+        now = datetime.utcnow()
+        for item in tokens:
+            listed = item.get("recent_listing_time")
+            age_minutes = None
+            if listed:
+                age_minutes = max(0.0, (now.timestamp() - listed) / 60)
+            out.append(
+                TokenCandidate(
+                    mint=item.get("address", ""),
+                    symbol=item.get("symbol", "UNKNOWN"),
+                    age_minutes=age_minutes,
+                    liquidity_usd=item.get("liquidity", 0.0),
+                    volume_5m_usd=item.get("v5mUSD", 0.0),
+                )
+            )
+        return [c for c in out if c.mint]
+
+    async def fetch_signals(self, mint: str) -> TokenSignals:
+        if not settings.birdeye_api_key:
+            return TokenSignals(
+                mint=mint,
+                mint_authority_disabled=True,
+                freeze_authority_disabled=True,
+                top10_holder_pct=27.0,
+                liquidity_locked=True,
+                known_scam_flag=False,
+                connected_holders_flag=False,
+                data_sources=["fallback-sample"],
+            )
+
+        headers = {"X-API-KEY": settings.birdeye_api_key}
+        async with build_client() as client:
+            token_info = await self._safe_get_json(
+                client,
+                f"{settings.birdeye_base}/defi/token_security?address={mint}",
+                headers,
+            )
+            holder_info = await self._safe_get_json(
+                client,
+                f"{settings.solscan_base}/token/holders?tokenAddress={mint}&offset=0&limit=10",
+                {},
+            )
+            rug_info = await self._safe_get_json(
+                client,
+                f"{settings.rugcheck_base}/v1/tokens/{mint}/report/summary",
+                {},
+            )
+
+        top_pct = _sum_holder_pct(holder_info)
+        return TokenSignals(
+            mint=mint,
+            mint_authority_disabled=bool(token_info.get("mintAuthorityDisabled", False)),
+            freeze_authority_disabled=bool(token_info.get("freezeAuthorityDisabled", False)),
+            top10_holder_pct=top_pct,
+            liquidity_locked=bool(rug_info.get("lpLocked", False)),
+            known_scam_flag=bool(rug_info.get("knownScam", False)),
+            connected_holders_flag=bool(rug_info.get("insiderClusters", False)),
+            data_sources=["birdeye", "solscan", "rugcheck"],
+        )
+
+    async def _safe_get_json(
+        self, client: httpx.AsyncClient, url: str, headers: dict
+    ) -> dict:
+        try:
+            response = await client.get(url, headers=headers)
+            if response.status_code >= 400:
+                return {}
+            return response.json() if response.content else {}
+        except Exception:
+            return {}
+
+
+def _sum_holder_pct(payload: dict) -> float:
+    data = payload.get("data", {}).get("result", [])
+    total = 0.0
+    for row in data:
+        try:
+            total += float(row.get("percentage", 0.0))
+        except (TypeError, ValueError):
+            continue
+    return round(total, 2)

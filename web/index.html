@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Personal Solana Risk Monitor</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; background: #111827; color: #e5e7eb; }
+      .wrap { max-width: 1200px; margin: 0 auto; padding: 18px; }
+      .card { background: #1f2937; border: 1px solid #374151; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+      button { padding: 8px 12px; margin-right: 8px; border: 1px solid #4b5563; background: #111827; color: #e5e7eb; border-radius: 6px; cursor: pointer; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+      th, td { border-bottom: 1px solid #374151; padding: 6px; text-align: left; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      pre { white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Personal Solana Risk Monitor</h1>
+      <p>Monitoring-only tool. No automatic trade execution.</p>
+      <div class="card">
+        <button id="startBtn">Start Monitor</button>
+        <button id="stopBtn">Stop Monitor</button>
+        <button id="refreshBtn">Refresh Tables</button>
+        <span id="stateLabel"></span>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h3>Top Risk Scores (Solana)</h3>
+          <table id="riskTable"></table>
+        </div>
+        <div class="card">
+          <h3>Potential Gain Estimates</h3>
+          <table id="gainTable"></table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Unified Signals (Solana + Polymarket)</h3>
+        <table id="signalTable"></table>
+      </div>
+      <div class="card">
+        <h3>Live Event Feed</h3>
+        <pre id="feed"></pre>
+      </div>
+    </div>
+    <script src="/web/app.js"></script>
+  </body>
+  </html>
