@@ -10,6 +10,9 @@ class Settings(BaseModel):
     solscan_base: str = os.getenv("SOLSCAN_BASE", "https://public-api.solscan.io")
     birdeye_base: str = os.getenv("BIRDEYE_BASE", "https://public-api.birdeye.so")
     birdeye_api_key: str = os.getenv("BIRDEYE_API_KEY", "")
+    min_pick_score: int = int(os.getenv("MIN_PICK_SCORE", "75"))
+    min_pick_risk_reward: float = float(os.getenv("MIN_PICK_RISK_REWARD", "1.5"))
+    max_top10_holder_pct: float = float(os.getenv("MAX_TOP10_HOLDER_PCT", "35"))
 
 
 settings = Settings()

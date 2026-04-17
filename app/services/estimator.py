@@ -12,6 +12,7 @@ def estimate_gain_profile(candidate: TokenCandidate, risk: RiskResult) -> GainEs
     estimated_upside = round((18 * momentum + 14 * liquidity_factor + 12 * trust_factor), 2)
     estimated_downside = round((35 * (1 - trust_factor)) + (18 * (1 - liquidity_factor)), 2)
     expected_value = round((estimated_upside * trust_factor) - (estimated_downside * (1 - trust_factor)), 2)
+    risk_reward_ratio = round(estimated_upside / max(1.0, estimated_downside), 2)
 
     if trust_factor >= 0.75:
         confidence = "high"
@@ -34,6 +35,7 @@ def estimate_gain_profile(candidate: TokenCandidate, risk: RiskResult) -> GainEs
         estimated_upside_pct=estimated_upside,
         estimated_downside_pct=estimated_downside,
         expected_value_pct=expected_value,
+        risk_reward_ratio=risk_reward_ratio,
         reasons=reasons,
         generated_at=datetime.utcnow(),
     )

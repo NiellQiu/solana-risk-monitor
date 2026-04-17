@@ -33,6 +33,12 @@ This project is a monitoring-only dashboard for Solana token risk and signal tra
 5. `uvicorn app.main:app --reload`
 6. Open `http://127.0.0.1:8000`
 
+### Recommended safer defaults
+Use these stricter thresholds for personal risk control:
+- `MIN_PICK_SCORE=75`
+- `MIN_PICK_RISK_REWARD=1.5`
+- `MAX_TOP10_HOLDER_PCT=35`
+
 ## API Endpoints
 - `POST /api/monitor/start`
 - `POST /api/monitor/stop`

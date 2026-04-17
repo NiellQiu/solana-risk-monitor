@@ -13,6 +13,11 @@
       th, td { border-bottom: 1px solid #374151; padding: 6px; text-align: left; }
       .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
       pre { white-space: pre-wrap; }
+      label { font-size: 0.9rem; color: #d1d5db; margin-right: 6px; }
+      input { padding: 6px; border-radius: 6px; border: 1px solid #4b5563; background: #111827; color: #e5e7eb; width: 110px; }
+      .inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; }
+      .modal { width: 460px; max-width: 95vw; background: #1f2937; border: 1px solid #374151; border-radius: 10px; padding: 14px; }
     </style>
   </head>
   <body>
@@ -23,7 +28,18 @@
         <button id="startBtn">Start Monitor</button>
         <button id="stopBtn">Stop Monitor</button>
         <button id="refreshBtn">Refresh Tables</button>
+        <button id="capitalBtn">Capital Setup</button>
         <span id="stateLabel"></span>
+      </div>
+      <div class="card">
+        <h3>Personal Risk Profile</h3>
+        <div class="inline">
+          <label>Deposit (USD)</label><input id="depositInput" type="number" min="1" step="1" value="10" />
+          <label>Risk per pick %</label><input id="riskPctInput" type="number" min="1" max="100" step="1" value="10" />
+          <label>Min score</label><input id="minScoreInput" type="number" min="1" max="100" step="1" value="70" />
+          <label>Min R:R</label><input id="minRRInput" type="number" min="0.1" step="0.1" value="1.2" />
+        </div>
+        <p id="profileSummary"></p>
       </div>
       <div class="grid">
         <div class="card">
@@ -36,12 +52,32 @@
         </div>
       </div>
       <div class="card">
+        <h3>High-Potential Picks (Filtered)</h3>
+        <table id="pickTable"></table>
+      </div>
+      <div class="card">
         <h3>Unified Signals (Solana + Polymarket)</h3>
         <table id="signalTable"></table>
       </div>
       <div class="card">
         <h3>Live Event Feed</h3>
         <pre id="feed"></pre>
+      </div>
+    </div>
+    <div class="modal-backdrop" id="capitalModal">
+      <div class="modal">
+        <h3>Capital Setup</h3>
+        <p>Configure your personal sizing. This is advisory only and cannot guarantee safety/profit.</p>
+        <div class="inline">
+          <label>Deposit</label><input id="modalDeposit" type="number" min="1" step="1" />
+          <label>Risk %</label><input id="modalRiskPct" type="number" min="1" max="100" step="1" />
+          <label>Min Score</label><input id="modalMinScore" type="number" min="1" max="100" step="1" />
+          <label>Min R:R</label><input id="modalMinRR" type="number" min="0.1" step="0.1" />
+        </div>
+        <div style="margin-top: 12px;">
+          <button id="saveCapitalBtn">Save</button>
+          <button id="closeCapitalBtn">Close</button>
+        </div>
       </div>
     </div>
     <script src="/web/app.js"></script>
