@@ -29,7 +29,7 @@ This project is a monitoring-only dashboard for Solana token risk and signal tra
 1. `python -m venv .venv`
 2. `.\.venv\Scripts\Activate.ps1`
 3. `python -m pip install -r requirements.txt`
-4. **API keys:** copy `.env.example` to `.env` *or* copy `secrets/local.env.example` to `secrets/local.env` and paste `HELIUS_RPC_URL` (and optional keys). The `secrets/` folder is for local secrets only and is gitignored.
+4. **API keys:** copy `.env.example` to `.env` *or* copy `secrets/local.env.example` to `secrets/local.env`. Set **`HELIUS_RPC_URL`** (recommended). **Discovery:** if `BIRDEYE_API_KEY` is empty, the app uses **DexScreener** public API (no key, ~60 req/min). Optional: add Birdeye for an alternate discovery path.
 5. `uvicorn app.main:app --reload`
 6. Open `http://127.0.0.1:8000`
 

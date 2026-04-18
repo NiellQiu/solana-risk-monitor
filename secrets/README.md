@@ -15,7 +15,8 @@ You can also use the project root `.env` file — both are loaded (root `.env` f
 | Priority | Name | Purpose |
 |----------|------|--------|
 | Done | **Helius RPC** | Real Solana chain reads (`HELIUS_RPC_URL`) |
-| High | **Birdeye** | Token lists, price, volume, mcap-style fields (`BIRDEYE_API_KEY`) |
+| Default | **DexScreener** | Free public API for token discovery + pair stats (no key; ~60 req/min) |
+| Optional | **Birdeye** | Alternate discovery if you set `BIRDEYE_API_KEY` |
 | Medium | **RugCheck** | Extra safety signals (already used via public base URL; key if they offer one) |
 | Alerts | **Telegram Bot API** | Phone alerts (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) — not required for monitoring |
 

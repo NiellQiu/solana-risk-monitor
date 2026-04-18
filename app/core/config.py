@@ -18,6 +18,8 @@ class Settings(BaseModel):
     birdeye_base: str = os.getenv("BIRDEYE_BASE", "https://public-api.birdeye.so")
     birdeye_api_key: str = os.getenv("BIRDEYE_API_KEY", "")
     helius_rpc_url: str = os.getenv("HELIUS_RPC_URL", "").strip()
+    dexscreener_base: str = os.getenv("DEXSCREENER_BASE", "https://api.dexscreener.com")
+    dexscreener_chunk_size: int = int(os.getenv("DEXSCREENER_CHUNK_SIZE", "8"))
     min_pick_score: int = int(os.getenv("MIN_PICK_SCORE", "75"))
     min_pick_risk_reward: float = float(os.getenv("MIN_PICK_RISK_REWARD", "1.5"))
     max_top10_holder_pct: float = float(os.getenv("MAX_TOP10_HOLDER_PCT", "35"))

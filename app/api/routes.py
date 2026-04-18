@@ -26,6 +26,10 @@ async def providers_status() -> dict:
         "helius_slot": None,
         "helius_error": None,
         "birdeye_configured": bool(settings.birdeye_api_key),
+        "discovery_mode": "birdeye"
+        if settings.birdeye_api_key
+        else "dexscreener",
+        "dexscreener_base": settings.dexscreener_base,
     }
     if settings.helius_rpc_url:
         try:

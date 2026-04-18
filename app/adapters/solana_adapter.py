@@ -3,6 +3,8 @@ from typing import List
 
 import httpx
 
+from app.adapters import helius_rpc
+from app.adapters.dexscreener_adapter import discover_candidates_dexscreener
 from app.adapters.http_client import build_client
 from app.core.config import settings
 from app.models.types import TokenCandidate, TokenSignals
@@ -10,20 +12,21 @@ from app.models.types import TokenCandidate, TokenSignals
 
 class SolanaAdapter:
     async def discover_candidates(self) -> List[TokenCandidate]:
-        if not settings.birdeye_api_key:
-            return [
-                TokenCandidate(
-                    mint="So11111111111111111111111111111111111111112",
-                    symbol="WSOL",
-                    age_minutes=120.0,
-                    liquidity_usd=2000000.0,
-                    volume_5m_usd=85000.0,
-                    market_cap_usd=1800000.0,
-                    price_change_1h_pct=-42.0,
-                    volume_15m_usd=210000.0,
-                )
-            ]
+        if settings.birdeye_api_key:
+            return await self._discover_birdeye()
 
+        try:
+            candidates = await discover_candidates_dexscreener(
+                limit=min(30, settings.watchlist_limit)
+            )
+            if candidates:
+                return candidates
+        except Exception:
+            pass
+
+        return [self._fallback_candidate()]
+
+    async def _discover_birdeye(self) -> List[TokenCandidate]:
         headers = {"X-API-KEY": settings.birdeye_api_key}
         url = f"{settings.birdeye_base}/defi/tokenlist"
         async with build_client() as client:
@@ -53,19 +56,24 @@ class SolanaAdapter:
             )
         return [c for c in out if c.mint]
 
-    async def fetch_signals(self, mint: str) -> TokenSignals:
-        if not settings.birdeye_api_key:
-            return TokenSignals(
-                mint=mint,
-                mint_authority_disabled=True,
-                freeze_authority_disabled=True,
-                top10_holder_pct=27.0,
-                liquidity_locked=True,
-                known_scam_flag=False,
-                connected_holders_flag=False,
-                data_sources=["fallback-sample"],
-            )
+    def _fallback_candidate(self) -> TokenCandidate:
+        return TokenCandidate(
+            mint="So11111111111111111111111111111111111111112",
+            symbol="WSOL",
+            age_minutes=120.0,
+            liquidity_usd=2000000.0,
+            volume_5m_usd=85000.0,
+            market_cap_usd=1800000.0,
+            price_change_1h_pct=-42.0,
+            volume_15m_usd=210000.0,
+        )
 
+    async def fetch_signals(self, mint: str) -> TokenSignals:
+        if settings.birdeye_api_key:
+            return await self._signals_birdeye(mint)
+        return await self._signals_free_tier(mint)
+
+    async def _signals_birdeye(self, mint: str) -> TokenSignals:
         headers = {"X-API-KEY": settings.birdeye_api_key}
         async with build_client() as client:
             token_info = await self._safe_get_json(
@@ -94,6 +102,39 @@ class SolanaAdapter:
             known_scam_flag=bool(rug_info.get("knownScam", False)),
             connected_holders_flag=bool(rug_info.get("insiderClusters", False)),
             data_sources=["birdeye", "solscan", "rugcheck"],
+        )
+
+    async def _signals_free_tier(self, mint: str) -> TokenSignals:
+        mint_dis = None
+        freeze_dis = None
+        if settings.helius_rpc_url:
+            try:
+                mint_dis, freeze_dis = await helius_rpc.get_spl_mint_authorities_disabled(mint)
+            except Exception:
+                pass
+
+        async with build_client() as client:
+            holder_info = await self._safe_get_json(
+                client,
+                f"{settings.solscan_base}/token/holders?tokenAddress={mint}&offset=0&limit=10",
+                {},
+            )
+            rug_info = await self._safe_get_json(
+                client,
+                f"{settings.rugcheck_base}/v1/tokens/{mint}/report/summary",
+                {},
+            )
+
+        top_pct = _sum_holder_pct(holder_info)
+        return TokenSignals(
+            mint=mint,
+            mint_authority_disabled=mint_dis,
+            freeze_authority_disabled=freeze_dis,
+            top10_holder_pct=top_pct,
+            liquidity_locked=bool(rug_info.get("lpLocked", False)),
+            known_scam_flag=bool(rug_info.get("knownScam", False)),
+            connected_holders_flag=bool(rug_info.get("insiderClusters", False)),
+            data_sources=["helius-rpc", "rugcheck", "solscan"],
         )
 
     async def _safe_get_json(
