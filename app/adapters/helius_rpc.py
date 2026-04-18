@@ -1,0 +1,36 @@
+"""Helius Solana JSON-RPC helpers (read-only)."""
+
+from typing import Any, Optional
+
+import httpx
+
+from app.core.config import settings
+
+
+async def rpc_call(method: str, params: Optional[list] = None) -> Any:
+    if not settings.helius_rpc_url:
+        raise ValueError("HELIUS_RPC_URL is not set")
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": method,
+        "params": params or [],
+    }
+    async with httpx.AsyncClient(timeout=settings.request_timeout_seconds) as client:
+        response = await client.post(settings.helius_rpc_url, json=payload)
+        response.raise_for_status()
+        data = response.json()
+    if "error" in data:
+        raise RuntimeError(str(data["error"]))
+    return data.get("result")
+
+
+async def get_health() -> str:
+    """Returns RPC health string, usually 'ok'."""
+    result = await rpc_call("getHealth")
+    return str(result)
+
+
+async def get_slot() -> int:
+    result = await rpc_call("getSlot")
+    return int(result)

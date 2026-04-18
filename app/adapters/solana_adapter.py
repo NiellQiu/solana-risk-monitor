@@ -18,6 +18,9 @@ class SolanaAdapter:
                     age_minutes=120.0,
                     liquidity_usd=2000000.0,
                     volume_5m_usd=85000.0,
+                    market_cap_usd=1800000.0,
+                    price_change_1h_pct=-42.0,
+                    volume_15m_usd=210000.0,
                 )
             ]
 
@@ -43,6 +46,9 @@ class SolanaAdapter:
                     age_minutes=age_minutes,
                     liquidity_usd=item.get("liquidity", 0.0),
                     volume_5m_usd=item.get("v5mUSD", 0.0),
+                    market_cap_usd=item.get("mc", item.get("marketCap", 0.0)),
+                    price_change_1h_pct=item.get("v1hChangePercent", item.get("priceChange1h", 0.0)),
+                    volume_15m_usd=item.get("v15mUSD", 0.0),
                 )
             )
         return [c for c in out if c.mint]

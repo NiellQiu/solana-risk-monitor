@@ -10,6 +10,9 @@ class TokenCandidate(BaseModel):
     age_minutes: Optional[float] = None
     liquidity_usd: Optional[float] = None
     volume_5m_usd: Optional[float] = None
+    market_cap_usd: Optional[float] = None
+    price_change_1h_pct: Optional[float] = None
+    volume_15m_usd: Optional[float] = None
 
 
 class TokenSignals(BaseModel):

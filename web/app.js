@@ -2,6 +2,7 @@ const stateLabel = document.getElementById("stateLabel");
 const riskTable = document.getElementById("riskTable");
 const gainTable = document.getElementById("gainTable");
 const pickTable = document.getElementById("pickTable");
+const reboundTable = document.getElementById("reboundTable");
 const signalTable = document.getElementById("signalTable");
 const feed = document.getElementById("feed");
 const capitalModal = document.getElementById("capitalModal");
@@ -69,8 +70,27 @@ async function refreshSignals() {
     rows.map((r) => `<tr><td>${r.source}</td><td>${r.name}</td><td>${r.score}</td><td>${r.risk_level}</td><td>${r.summary}</td></tr>`).join("");
 }
 
+async function refreshRebound() {
+  const rows = await fetchJson("/api/rebound/top?limit=20");
+  reboundTable.innerHTML =
+    "<tr><th>Symbol</th><th>Status</th><th>Cycles</th><th>Score</th><th>MCap $</th><th>Drawdown %</th><th>Vol Recovery</th><th>EV %</th><th>R:R</th><th>Summary</th></tr>" +
+    rows
+      .map(
+        (r) =>
+          `<tr><td>${r.symbol}</td><td>${r.status}</td><td>${r.confirmation_cycles}</td><td>${r.score}</td><td>${r.market_cap_usd}</td><td>${r.drawdown_pct}</td><td>${r.volume_recovery_ratio}</td><td>${r.expected_value_pct}</td><td>${r.risk_reward_ratio}</td><td>${r.summary}</td></tr>`
+      )
+      .join("");
+}
+
 async function refreshAll() {
-  await Promise.all([refreshState(), refreshRisk(), refreshGain(), refreshPicks(), refreshSignals()]);
+  await Promise.all([
+    refreshState(),
+    refreshRisk(),
+    refreshGain(),
+    refreshPicks(),
+    refreshRebound(),
+    refreshSignals(),
+  ]);
   renderProfileSummary();
 }
 

@@ -7,8 +7,8 @@ from typing import Deque, Dict, List
 from app.adapters.polymarket_adapter import PolymarketAdapter
 from app.adapters.solana_adapter import SolanaAdapter
 from app.core.config import settings
-from app.models.analysis import GainEstimate, PotentialPick, UnifiedSignal
-from app.models.types import MonitorState, RiskResult
+from app.models.analysis import GainEstimate, PotentialPick, ReboundCandidate, UnifiedSignal
+from app.models.types import MonitorState, RiskResult, TokenCandidate
 from app.services.estimator import estimate_gain_profile
 from app.services.scoring import score_token
 
@@ -21,6 +21,8 @@ class MonitorService:
         self._task: asyncio.Task | None = None
         self._risk_results: Dict[str, RiskResult] = {}
         self._gain_results: Dict[str, GainEstimate] = {}
+        self._candidates: Dict[str, TokenCandidate] = {}
+        self._rebound_cycles: Dict[str, int] = {}
         self._events: Deque[dict] = deque(maxlen=500)
 
     def state(self) -> MonitorState:
@@ -109,6 +111,66 @@ class MonitorService:
         polymarket_rows = await self.polymarket.discover_markets()
         return solana_rows + polymarket_rows
 
+    def rebound_candidates(self, limit: int = 20) -> List[ReboundCandidate]:
+        rows: List[ReboundCandidate] = []
+        for mint, candidate in self._candidates.items():
+            risk = self._risk_results.get(mint)
+            gain = self._gain_results.get(mint)
+            if not risk or not gain:
+                continue
+
+            mc = float(candidate.market_cap_usd or 0.0)
+            drawdown = abs(float(candidate.price_change_1h_pct or 0.0))
+            v5 = float(candidate.volume_5m_usd or 0.0)
+            v15 = float(candidate.volume_15m_usd or 0.0)
+            volume_ratio = v5 / max(1.0, v15 / 3.0)
+
+            passes = (
+                settings.rebound_min_mcap_usd <= mc <= settings.rebound_max_mcap_usd
+                and settings.rebound_min_drawdown_pct <= drawdown <= settings.rebound_max_drawdown_pct
+                and volume_ratio >= settings.rebound_min_volume_recovery_ratio
+                and risk.score >= settings.min_pick_score
+                and risk.risk_level != "high"
+                and gain.risk_reward_ratio >= settings.min_pick_risk_reward
+                and not risk.signals.known_scam_flag
+                and not risk.signals.connected_holders_flag
+                and risk.signals.liquidity_locked is not False
+            )
+            cycles = self._rebound_cycles.get(mint, 0)
+            status = "invalidated"
+            if passes:
+                if cycles >= settings.rebound_confirm_cycles:
+                    status = "ready"
+                elif cycles == settings.rebound_confirm_cycles - 1:
+                    status = "confirming"
+                else:
+                    status = "early"
+
+            rows.append(
+                ReboundCandidate(
+                    mint=mint,
+                    symbol=candidate.symbol,
+                    score=risk.score,
+                    risk_level=risk.risk_level,
+                    market_cap_usd=round(mc, 2),
+                    drawdown_pct=round(drawdown, 2),
+                    volume_recovery_ratio=round(volume_ratio, 2),
+                    expected_value_pct=gain.expected_value_pct,
+                    risk_reward_ratio=gain.risk_reward_ratio,
+                    status=status,
+                    confirmation_cycles=cycles,
+                    summary="; ".join(risk.reasons[:2]),
+                    updated_at=risk.updated_at,
+                )
+            )
+
+        filtered = [r for r in rows if r.status in {"early", "confirming", "ready"}]
+        return sorted(
+            filtered,
+            key=lambda r: (r.status == "ready", r.confirmation_cycles, r.expected_value_pct, r.score),
+            reverse=True,
+        )[:limit]
+
     def event_snapshot(self) -> List[dict]:
         return list(self._events)
 
@@ -143,11 +205,16 @@ class MonitorService:
     async def _poll_once(self) -> None:
         candidates = await self.solana.discover_candidates()
         for candidate in candidates[: settings.watchlist_limit]:
+            self._candidates[candidate.mint] = candidate
             signals = await self.solana.fetch_signals(candidate.mint)
             risk = score_token(candidate, signals)
             estimate = estimate_gain_profile(candidate, risk)
             self._risk_results[candidate.mint] = risk
             self._gain_results[candidate.mint] = estimate
+            if self._is_rebound_pass(candidate, risk, estimate):
+                self._rebound_cycles[candidate.mint] = self._rebound_cycles.get(candidate.mint, 0) + 1
+            else:
+                self._rebound_cycles[candidate.mint] = 0
             self._events.appendleft(
                 {
                     "kind": "tick",
@@ -157,5 +224,24 @@ class MonitorService:
                     "score": risk.score,
                     "risk": risk.risk_level,
                     "ev_pct": estimate.expected_value_pct,
+                    "rebound_cycles": self._rebound_cycles.get(candidate.mint, 0),
                 }
             )
+
+    def _is_rebound_pass(self, candidate: TokenCandidate, risk: RiskResult, gain: GainEstimate) -> bool:
+        mc = float(candidate.market_cap_usd or 0.0)
+        drawdown = abs(float(candidate.price_change_1h_pct or 0.0))
+        v5 = float(candidate.volume_5m_usd or 0.0)
+        v15 = float(candidate.volume_15m_usd or 0.0)
+        volume_ratio = v5 / max(1.0, v15 / 3.0)
+        return (
+            settings.rebound_min_mcap_usd <= mc <= settings.rebound_max_mcap_usd
+            and settings.rebound_min_drawdown_pct <= drawdown <= settings.rebound_max_drawdown_pct
+            and volume_ratio >= settings.rebound_min_volume_recovery_ratio
+            and risk.score >= settings.min_pick_score
+            and risk.risk_level != "high"
+            and gain.risk_reward_ratio >= settings.min_pick_risk_reward
+            and not risk.signals.known_scam_flag
+            and not risk.signals.connected_holders_flag
+            and risk.signals.liquidity_locked is not False
+        )

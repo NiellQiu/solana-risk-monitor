@@ -29,7 +29,7 @@ This project is a monitoring-only dashboard for Solana token risk and signal tra
 1. `python -m venv .venv`
 2. `.\.venv\Scripts\Activate.ps1`
 3. `python -m pip install -r requirements.txt`
-4. Copy `.env.example` to `.env` and set optional API keys.
+4. **API keys:** copy `.env.example` to `.env` *or* copy `secrets/local.env.example` to `secrets/local.env` and paste `HELIUS_RPC_URL` (and optional keys). The `secrets/` folder is for local secrets only and is gitignored.
 5. `uvicorn app.main:app --reload`
 6. Open `http://127.0.0.1:8000`
 
@@ -39,12 +39,24 @@ Use these stricter thresholds for personal risk control:
 - `MIN_PICK_RISK_REWARD=1.5`
 - `MAX_TOP10_HOLDER_PCT=35`
 
+### Rebound watchlist defaults
+To focus on low-mcap rebound candidates:
+- `REBOUND_MIN_MCAP_USD=200000`
+- `REBOUND_MAX_MCAP_USD=3000000`
+- `REBOUND_MIN_DRAWDOWN_PCT=35`
+- `REBOUND_MAX_DRAWDOWN_PCT=70`
+- `REBOUND_MIN_VOLUME_RECOVERY_RATIO=1.2`
+- `REBOUND_CONFIRM_CYCLES=2`
+
 ## API Endpoints
+- `GET /api/health`
+- `GET /api/providers/status` — Helius RPC reachability + whether Birdeye key is set
 - `POST /api/monitor/start`
 - `POST /api/monitor/stop`
 - `GET /api/monitor/state`
 - `GET /api/risk/top`
 - `GET /api/gain/top`
+- `GET /api/rebound/top`
 - `GET /api/signals/unified`
 - `GET /api/stream` (SSE)
 

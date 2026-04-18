@@ -38,3 +38,19 @@ class UnifiedSignal(BaseModel):
     risk_level: str
     summary: str
     updated_at: datetime
+
+
+class ReboundCandidate(BaseModel):
+    mint: str
+    symbol: str
+    score: int
+    risk_level: str
+    market_cap_usd: float
+    drawdown_pct: float
+    volume_recovery_ratio: float
+    expected_value_pct: float
+    risk_reward_ratio: float
+    status: Literal["early", "confirming", "ready", "invalidated"]
+    confirmation_cycles: int
+    summary: str
+    updated_at: datetime

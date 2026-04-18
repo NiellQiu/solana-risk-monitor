@@ -4,6 +4,8 @@ import json
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
+from app.core.config import settings
+from app.adapters import helius_rpc
 from app.services.monitor import MonitorService
 
 router = APIRouter(prefix="/api", tags=["monitor"])
@@ -13,6 +15,25 @@ monitor = MonitorService()
 @router.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@router.get("/providers/status")
+async def providers_status() -> dict:
+    """Shows which external providers are configured / reachable."""
+    out: dict = {
+        "helius_rpc_configured": bool(settings.helius_rpc_url),
+        "helius_health": None,
+        "helius_slot": None,
+        "helius_error": None,
+        "birdeye_configured": bool(settings.birdeye_api_key),
+    }
+    if settings.helius_rpc_url:
+        try:
+            out["helius_health"] = await helius_rpc.get_health()
+            out["helius_slot"] = await helius_rpc.get_slot()
+        except Exception as exc:
+            out["helius_error"] = str(exc)
+    return out
 
 
 @router.post("/monitor/start")
@@ -60,6 +81,11 @@ def top_potential_picks(
 async def unified_signals() -> list[dict]:
     rows = await monitor.unified_signals()
     return [row.model_dump(mode="json") for row in rows]
+
+
+@router.get("/rebound/top")
+def top_rebound_candidates(limit: int = 20) -> list[dict]:
+    return [item.model_dump(mode="json") for item in monitor.rebound_candidates(limit=limit)]
 
 
 @router.get("/stream")
